@@ -1,0 +1,59 @@
+apply plugin: 'com.android.application'
+
+// Load keystore
+def keystoreProperties = new Properties()
+try {
+    def keystorePropertiesFile = rootProject.file('keystore.properties')
+    // Put isLocal first so that it can be overwritten later within keystore.properties itself (If needed)
+    keystoreProperties.put('isLocal', 'true')
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+} catch (Exception ignored) {
+    keystoreProperties.put('keystoreDir', '/')
+    keystoreProperties.put('isLocal', 'false')
+}
+
+android {
+    signingConfigs {
+        release {
+            storeFile = file(keystoreProperties['keystoreDir'])
+            keyAlias = keystoreProperties['keystoreAlias']
+            keyPassword = keystoreProperties['keystorePass']
+            storePassword = keystoreProperties['keystorePass']
+        }
+    }
+    compileSdkVersion 29
+    defaultConfig {
+        applicationId "com.pcchin.fileinflater"
+        minSdkVersion 19
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            debuggable true
+            versionNameSuffix = '-d'
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'org.jetbrains:annotations-java5:15.0'
+    testImplementation 'junit:junit:4.13'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+
+}

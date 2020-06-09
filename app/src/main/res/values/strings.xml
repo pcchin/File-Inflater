@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">File Inflater</string>
+    <string name="error_read_permission_denied">Permission denied for reading files. Importing files may not be possible.</string>
+    <string name="error_write_permission_denied">Permission denied for writing files. Exporting files may not be possible.</string>
+    <string name="file_error">File Error</string>
+    <string name="file_compress">Compress File</string>
+    <string name="file_decompress">Decompress File</string>
+    <string name="info">File Inflater is a quick and dirty app used to compress and decompress files through Java\'s Inflater and Deflater. More info about this app can be found at is GitHub page at https://github.com/pcchin/File-Inflater.</string>
+</resources>
