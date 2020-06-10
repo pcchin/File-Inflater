@@ -3,10 +3,12 @@ package com.pcchin.fileinflater;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
@@ -15,11 +17,14 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -92,13 +97,13 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             byte[] contents = getRemainingBytesFromFile(inputStream);
-            String outputFilePath = generateValidFile(getExternalDownloadDir() + "compressed", ".zlib");
+            String outputFilePath = getOutputFilePath(true, data);
             try (FileOutputStream outputStream = new FileOutputStream(outputFilePath);
                  DeflaterOutputStream deflatedOutput = new DeflaterOutputStream(outputStream)) {
-                deflatedOutput.write(contents);
+                deflatedOutput.write(Objects.requireNonNull(contents));
             }
             Toast.makeText(MainActivity.this, "File decompressed to " + outputFilePath, Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
+        } catch (NullPointerException | IOException e) {
             e.printStackTrace();
             Toast.makeText(MainActivity.this, R.string.file_error, Toast.LENGTH_SHORT).show();
         }
@@ -108,14 +113,31 @@ public class MainActivity extends AppCompatActivity {
         try (InputStream inputStream = getContentResolver().openInputStream(data);
              InflaterInputStream inputInflater = new InflaterInputStream(inputStream)) {
             byte[] contents = getRemainingBytesFromFile(inputInflater);
-            String outputFile = generateValidFile(getExternalDownloadDir() + "decompressed", ".txt");
+            String outputFile = getOutputFilePath(false, data);
             try (FileOutputStream outputStream = new FileOutputStream(outputFile)) {
-                outputStream.write(contents);
+                outputStream.write(Objects.requireNonNull(contents));
             }
             Toast.makeText(MainActivity.this, "File decompressed to " + outputFile, Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
+        } catch (NullPointerException | IOException e) {
             e.printStackTrace();
             Toast.makeText(MainActivity.this, R.string.file_error, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String getOutputFilePath(boolean isCompression, Uri data) {
+        try {
+            String originalName = getFileName(getFileNameFromUri(data));
+            if (isCompression) {
+                return generateValidFile(getExternalDownloadDir() + "/" + originalName, ".zlib");
+            } else {
+                return generateValidFile(getExternalDownloadDir() + "/" + originalName, ".txt");
+            }
+        } catch (Exception e) {
+            if (isCompression) {
+                return generateValidFile(getExternalDownloadDir() + "compressed", ".zlib");
+            } else {
+                return generateValidFile(getExternalDownloadDir() + "decompressed", ".txt");
+            }
         }
     }
 
@@ -138,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
         return downloadDirFile == null ? "/storage/emulated/0/" : downloadDirFile.getAbsolutePath() + "/";
     }
 
-    @NonNull
+    @Nullable
     public static byte[] getRemainingBytesFromFile(@NonNull InputStream stream) {
         try {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -150,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
             Log.w(LOG_APP_NAME, "File Error: Remaining bytes of input stream of file "
                     + stream + " not able to be read. Stack trace is");
             e.printStackTrace();
-            return new byte[0];
+            return null;
         }
     }
 
@@ -162,5 +184,38 @@ public class MainActivity extends AppCompatActivity {
             i++;
         }
         return returnFile;
+    }
+
+    private String getFileNameFromUri(@NonNull Uri uri) {
+        String result = null;
+        if (uri.getScheme() != null && uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
+                }
+            }
+        }
+        if (result == null && uri.getPath() != null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) {
+                result = result.substring(cut + 1);
+            }
+        }
+        return result;
+    }
+
+    @NonNull
+    public static String getFileName(String fileName) {
+        String[] splitString = new StringBuilder(fileName)
+                .reverse().toString()
+                .split("\\.", 2);
+        if (splitString.length > 1) {
+            return new StringBuilder(splitString[1]).reverse().toString();
+        } else if (splitString.length == 1) {
+            return new StringBuilder(splitString[0]).reverse().toString();
+        } else {
+            return "";
+        }
     }
 }
